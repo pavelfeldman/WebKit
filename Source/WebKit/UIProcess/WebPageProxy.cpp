@@ -4773,7 +4773,7 @@ bool WebPageProxy::cancelDragIfNeeded() {
     releaseInspectorDragPasteboard();
 #endif
 
-    dragEnded(m_lastMousePositionForDrag, IntPoint(), m_dragSourceOperationMask);
+    dragEnded(m_lastMousePositionForDrag, IntPoint(), { });
     return true;
 }
 
@@ -5101,13 +5101,15 @@ void WebPageProxy::processNextQueuedMouseEvent()
         if (eventType == WebEventType::MouseMove) {
             dragUpdated(dragData);
         } else if (eventType == WebEventType::MouseUp) {
+            OptionSet<WebCore::DragOperation> dragOperationMask;
             if (m_currentDragOperation && m_dragSourceOperationMask.containsAny(m_currentDragOperation.value())) {
+                dragOperationMask = m_currentDragOperation.value();
                 SandboxExtension::Handle sandboxExtensionHandle;
                 Vector<SandboxExtension::Handle> sandboxExtensionsForUpload;
                 performDragOperation(dragData, ""_s, WTF::move(sandboxExtensionHandle), WTF::move(sandboxExtensionsForUpload));
             }
             m_dragSelectionData = std::nullopt;
-            dragEnded(roundedIntPoint(event->position()), roundedIntPoint(event->globalPosition()), m_dragSourceOperationMask);
+            dragEnded(roundedIntPoint(event->position()), roundedIntPoint(event->globalPosition()), dragOperationMask);
         }
         mouseEventHandlingCompleted(true, std::nullopt);
     }
