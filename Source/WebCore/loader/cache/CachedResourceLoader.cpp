@@ -1424,8 +1424,15 @@ ResourceErrorOr<Ref<CachedResource>> CachedResourceLoader::requestResource(Cache
 
             auto resourceError = resource->resourceError();
             // Synchronous cancellations are likely due to access control.
-            if (resourceError.isNull() || resourceError.isCancellation())
+            if (resourceError.isNull() || resourceError.isCancellation()) {
+                // Playwright: loads refused by CachedResource::load() because the frame is navigating away
+                // are cancellations rather than access control failures, otherwise they are reported as
+                // access control errors to the page. See https://github.com/microsoft/playwright/issues/43120.
+                Ref frameLoader = frame->loader();
+                if (frameLoader->state() == FrameState::Provisional || !frameLoader->activeDocumentLoader() || frameLoader->activeDocumentLoader()->isStopping())
+                    return makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, url, "Load cancelled by navigation"_s, ResourceError::Type::Cancellation });
                 return makeUnexpected(ResourceError { String(), 0, url, String(), ResourceError::Type::AccessControl });
+            }
             return makeUnexpected(resourceError);
         }
     } else if (policy == Use && !ignoreForRequestCount && resource->isLoading() && resource->loader()) {
